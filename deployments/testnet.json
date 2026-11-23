@@ -1,0 +1,7 @@
+{
+  "network": "qorechain-diana",
+  "evmChainId": 9800,
+  "QDayRadar": "pending: deploy with `npm run ops -- deploy` after the faucet",
+  "deployer": "0xD0FaB2667Be5B435c1D7Ea7010658a3621153d53",
+  "deployerNative": "qor16ratyenmuk6rtswhafcpqev2xcs3202n9wsw3m"
+}

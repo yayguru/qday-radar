@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QDay Radar — is your wallet already quantum-exposed?</title>
+<meta name="description" content="Scan any EVM wallet on 7 chains for quantum exposure, then link it to a post-quantum (ML-DSA-87) successor on QoreChain." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>" />
+<style>
+:root{--bg:#070b14;--card:#0f1626;--line:#1f2a44;--txt:#e6ecff;--mut:#8b97b8;--acc:#22d3ee;--ok:#34d399;--warn:#fbbf24;--org:#fb923c;--bad:#f87171}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#0d2a3a 0,var(--bg) 60%);color:var(--txt);font:15px/1.55 Inter,system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:36px 18px 70px}
+h1{font-size:36px;margin:0}h2{font-size:17px;margin:0 0 10px}.sub{color:var(--mut);max-width:760px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap}input{flex:1;min-width:260px;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0a1020;color:var(--txt);font-family:ui-monospace,monospace}
+button{padding:11px 16px;border-radius:10px;border:1px solid var(--line);background:#16213a;color:var(--txt);cursor:pointer;font-weight:600}
+button.p{background:var(--acc);border-color:var(--acc);color:#04202a}button:disabled{opacity:.5}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-weight:500}
+.risk{padding:14px;border-radius:12px;font-weight:600}.r0{background:#0b2a20;color:var(--ok)}.r1{background:#2b2408;color:var(--warn)}.r2{background:#2d1a08;color:var(--org)}.r3{background:#2e0f12;color:var(--bad)}
+.mut{color:var(--mut);font-size:13px}code{font-family:ui-monospace,monospace;font-size:12.5px;color:#a5f3fc;word-break:break-all}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+a{color:var(--acc)}pre{background:#0a1020;border:1px solid var(--line);padding:10px;border-radius:10px;overflow:auto;font-size:12.5px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>📡 QDay Radar</h1>
+<p class="sub">The first time a wallet <b>sends</b> a transaction, its secp256k1 public key becomes public forever. On Q-Day a quantum computer can turn that key into the private key. QDay Radar checks 7 EVM chains for that exposure and lets you anchor a <b>hybrid-signed (ECDSA + ML-DSA-87)</b> record and a post-quantum successor on <b>QoreChain</b>.</p>
+
+<div class="card">
+  <div class="row"><input id="addr" placeholder="0x… any EVM address" spellcheck="false" /><button class="p" id="go">Scan</button></div>
+  <p class="mut">Try <a href="#" data-a="0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045">vitalik.eth</a> · <a href="#" data-a="0x000000000000000000000000000000000000dEaD">burn address</a> · read-only, nothing is stored.</p>
+</div>
+
+<div id="out"></div>
+
+<div class="grid">
+  <div class="card">
+    <h2>🛡 Your post-quantum account (QoreX)</h2>
+    <p class="mut">Connect the QoreX wallet (testnet) to check that your QoreChain account has a registered ML-DSA-87 key — read live from the chain's PQC precompile <code>0x…0A02</code>.</p>
+    <button id="qx">Connect QoreX</button>
+    <div id="qxout" class="mut" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>🔗 Link exposed wallet → PQ successor</h2>
+    <p class="mut">1) Sign the migration message with the <b>exposed</b> wallet (MetaMask etc.). 2) Your PQ account submits <code>linkSuccessor</code> — hybrid: the legacy ECDSA signature is checked on-chain and the sender must hold a registered ML-DSA key.</p>
+    <button id="sign" disabled>Sign with exposed wallet</button>
+    <div id="signout" class="mut" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="card"><h2>On-chain registry</h2><div id="reg" class="mut">loading…</div></div>
+<p class="mut">Open source · Apache-2.0 · <a href="https://github.com/yayguru/qday-radar">github.com/yayguru/qday-radar</a> · QoreChain testnet (qorechain-diana, EVM 9800) · Built for Build Before Q-Day</p>
+</div>
+<script>
+const RADAR = "__RADAR__";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+let lastScan = null, qorexAccount = null;
+
+async function scan() {
+  const a = $("addr").value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(a)) { $("out").innerHTML = '<div class="card risk r3">Enter a valid 0x address</div>'; return; }
+  $("go").disabled = true; $("out").innerHTML = '<div class="card mut">Scanning 7 chains…</div>';
+  try {
+    const r = await (await fetch("/api/scan?address=" + a)).json();
+    if (r.error) throw new Error(r.error);
+    lastScan = r;
+    const rows = r.chains.map((c) => "<tr><td>" + esc(c.chain) + "</td><td>" + (c.error ? "—" : c.nonce) + "</td><td>" + (c.error ? "—" : c.balance + " " + c.symbol) + "</td><td>" + (c.error ? '<span class="pill">unavailable</span>' : c.kind === "contract" ? '<span class="pill">contract</span>' : c.exposed ? '<span class="pill" style="color:var(--org)">key public</span>' : '<span class="pill" style="color:var(--ok)">hidden</span>') + "</td></tr>").join("");
+    let reg = "";
+    if (RADAR) {
+      try {
+        const s = await (await fetch("/api/registry?address=" + a)).json();
+        reg = s.scanned ? "On QoreChain: attested scan ✓ (risk " + s.risk + ")" : "On QoreChain: not attested yet";
+        reg += s.pqAccount && !/^0x0+$/.test(s.pqAccount) ? " · successor " + esc(s.pqAccount) + (s.successorStillProtected ? " 🛡 ML-DSA active" : " ⚠ key inactive") : " · no PQ successor linked";
+      } catch (e) {}
+    }
+    $("out").innerHTML = '<div class="card"><div class="risk r' + r.risk + '">' + ["🟢","🟡","🟠","🔴"][r.risk] + " " + esc(r.riskLabel) + "</div><p>" + esc(r.advice) + '</p><table><tr><th>Chain</th><th>Sent tx</th><th>Balance</th><th>Public key</th></tr>' + rows + '</table><p class="mut">Evidence hash <code>' + r.evidenceHash + "</code> · masks scanned=" + r.chainsScanned + " exposed=" + r.exposedMask + (reg ? "<br>" + reg : "") + "</p></div>";
+    $("sign").disabled = !qorexAccount;
+  } catch (e) { $("out").innerHTML = '<div class="card risk r3">' + esc(e.message) + "</div>"; }
+  $("go").disabled = false;
+}
+
+// EIP-6963 discovery: QoreX announces itself with rdns network.qore.qorex
+const providers = [];
+window.addEventListener("eip6963:announceProvider", (e) => providers.push(e.detail));
+window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+async function connectQorex() {
+  const qx = providers.find((p) => p.info && p.info.rdns === "network.qore.qorex");
+  const prov = qx ? qx.provider : window.qorex;
+  if (!prov) { $("qxout").innerHTML = 'QoreX not found. Install it from <a href="https://qorechain.io/qorex" target="_blank">qorechain.io/qorex</a> and switch to Testnet.'; return; }
+  try {
+    const [acc] = await prov.request({ method: "eth_requestAccounts" });
+    qorexAccount = acc;
+    const s = await (await fetch("/api/pqc?address=" + acc)).json();
+    $("qxout").innerHTML = "Account <code>" + esc(acc) + "</code><br>" + (s.registered ? "🛡 ML-DSA key registered (algorithm " + s.algorithmId + ", " + s.pubkeyBytes + "-byte public key)" : "⚠ No PQC key registered yet — register it in QoreX first.");
+    $("sign").disabled = !lastScan;
+  } catch (e) { $("qxout").textContent = e.message; }
+}
+
+async function signLegacy() {
+  if (!lastScan || !qorexAccount || !RADAR) { $("signout").textContent = "Scan an address and connect QoreX first (registry must be deployed)."; return; }
+  const legacyProv = (providers.find((p) => p.info && p.info.rdns !== "network.qore.qorex") || {}).provider || window.ethereum;
+  if (!legacyProv) { $("signout").textContent = "No classical wallet (e.g. MetaMask) found."; return; }
+  try {
+    const [legacy] = await legacyProv.request({ method: "eth_requestAccounts" });
+    if (legacy.toLowerCase() !== lastScan.address.toLowerCase()) { $("signout").textContent = "Switch your classical wallet to the scanned address " + lastScan.address; return; }
+    const { hash } = await (await fetch("/api/migration-message?legacy=" + legacy + "&pq=" + qorexAccount)).json();
+    const sig = await legacyProv.request({ method: "personal_sign", params: [hash, legacy] });
+    $("signout").innerHTML = "Legacy signature ✓<pre>npm run link -- " + esc(legacy) + " " + esc(sig) + "</pre>Run it with your QoreChain account (SDK), or submit from QoreX once it supports EVM transactions.";
+  } catch (e) { $("signout").textContent = e.message; }
+}
+
+async function registry() {
+  if (!RADAR) { $("reg").textContent = "Registry not deployed in this environment."; return; }
+  try {
+    const s = await (await fetch("/api/registry")).json();
+    $("reg").innerHTML = 'QDayRadar <code>' + esc(RADAR) + '</code> on QoreChain testnet · ' + s.scans + " attested scans · " + s.migrations + ' PQ migrations · <a target="_blank" href="https://explore.qore.network/">explorer</a>';
+  } catch (e) { $("reg").textContent = "Registry unreachable: " + e.message; }
+}
+
+$("go").onclick = scan; $("addr").onkeydown = (e) => { if (e.key === "Enter") scan(); };
+document.querySelectorAll("[data-a]").forEach((x) => x.onclick = (e) => { e.preventDefault(); $("addr").value = x.dataset.a; scan(); });
+$("qx").onclick = connectQorex; $("sign").onclick = signLegacy;
+registry();
+</script>
+</body></html>

@@ -1,0 +1,34 @@
+{
+  "name": "qday-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scan any EVM wallet for quantum exposure on 7 chains and anchor hybrid-signed records and post-quantum successors on QoreChain.",
+  "scripts": {
+    "forge-std": "forge install foundry-rs/forge-std --no-git",
+    "build": "forge build",
+    "test": "forge test && vitest run app",
+    "window": "tsx --env-file=.env.deployer scripts/window.ts",
+    "deploy:testnet": "forge script script/Deploy.s.sol --rpc-url qorechain_testnet --broadcast",
+    "typecheck": "tsc --noEmit",
+    "ops": "tsx --env-file=.env.deployer scripts/ops.ts",
+    "test:ts": "vitest run app",
+    "dev": "wrangler dev",
+    "deploy:worker": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.39.0",
+    "@qorechain/evm": "^0.14.0",
+    "@qorechain/sdk": "^0.14.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261123.1",
+    "@types/node": "^22.7.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3",
+    "viem": "^2.0.0",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.166.0"
+  },
+  "license": "Apache-2.0"
+}
