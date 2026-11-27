@@ -3,7 +3,8 @@
 node_modules/
 out/
 cache/
-lib/
+lib/*
+!lib/forge-std
 broadcast/*/31337/
 .wrangler/
 dist/

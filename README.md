@@ -44,7 +44,7 @@ Most people have no idea which of their wallets are exposed, on which chains, an
 
 ```sh
 npm install
-npm run forge-std          # forge-std for the tests
+git submodule update --init   # forge-std (pinned v1.17.0); `npm run forge-std` also works
 npm test                   # 12 Foundry tests + 10 scanner tests
 npm run dev                # local worker on http://localhost:8787
 ```
