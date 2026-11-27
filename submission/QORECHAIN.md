@@ -5,7 +5,7 @@
 **Category:** Quantum Pass (also eligible: Regional, Europe)
 **Repo:** https://github.com/yayguru/qday-radar (Apache-2.0)
 **Live app:** https://qday-radar.merjkerm.workers.dev
-**Featured image:** `submission/featured.png` (1200×630)
+**Cover image (16:9, required ≥1200×675):** `submission/cover-16x9.png` (1280×720). Old `featured.png` is 1200×630 = not 16:9, don't use it.
 **Video (≤3 min):** <link after upload>
 **Testnet contract (qorechain-diana, chain 9800):** QDayRadar `<fill in from deployments/testnet.json after deploy>`
 **Hybrid-signed tx (EVM window open):** `<tx hash from npm run ops -- deploy output>`
@@ -40,11 +40,26 @@ QDay Radar answers that in two seconds:
 - QoreX can't yet send EVM transactions or personal_sign, so `linkSuccessor` is submitted through the SDK CLI (`npm run ops -- link`). The UI shows the exact message to sign.
 - The exposure scan is a lower bound: a key could also have leaked off-chain.
 
+## How it's made (paste)
+
+- Scaffolded with `create-qorechain-dapp` (Foundry template). Contract `src/QDayRadar.sol`, 12 Foundry tests; the `pqcKeyStatus` precompile (0x…0A02) is mocked with `vm.etch` in tests and read live on testnet.
+- Operator scripts on `@qorechain/sdk` + `@qorechain/evm`: `scripts/window.ts` registers the ML-DSA-87 key and opens the EVM authorisation window with a hybrid-signed (secp256k1 + ML-DSA-87) native-lane tx; `scripts/ops.ts` deploys, attests and links successors with viem.
+- Scanner + API + Telegram webhook in one Cloudflare Worker (`app/`), 10 vitest tests, RPC fallbacks for 7 EVM chains.
+- Frontend detects QoreX via EIP-6963 and reads the connected account's PQC key status from the precompile.
+
+## Kits and network features (tick in the form)
+
+create-qorechain-dapp · @qorechain/sdk · @qorechain/evm · QoreX (EIP-6963) · PQC key registry / `pqcKeyStatus` precompile · ML-DSA-87 hybrid signatures · EVM authorisation window
+
+## Testnet address field (qor1…)
+
+qor16ratyenmuk6rtswhafcpqev2xcs3202n9wsw3m (deployer/attester). After deploy also add the contract from `submission/testnet-proof.md`.
+
 ## Checklist
 - [x] Public repo, Apache-2.0, README
 - [x] create-qorechain-dapp scaffold
 - [x] QoreX integration (EIP-6963 detect + account + PQC status)
-- [ ] Deployed on testnet (blocked on test QOR in the deployer address)
+- [ ] Deployed on testnet: blocked on test QOR. After faucet: `bash scripts/after-faucet.sh` (one command, testnet only)
 - [ ] ≥1 hybrid-signed transaction (comes with the deploy)
-- [x] Featured image
+- [x] Cover image 16:9 (`submission/cover-16x9.png`)
 - [ ] Video ≤ 3 min
