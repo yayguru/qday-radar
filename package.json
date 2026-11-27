@@ -14,7 +14,8 @@
     "ops": "tsx --env-file=.env.deployer scripts/ops.ts",
     "test:ts": "vitest run app",
     "dev": "wrangler dev",
-    "deploy:worker": "wrangler deploy"
+    "deploy:worker": "wrangler deploy",
+    "postinstall": "test -f lib/forge-std/src/Test.sol || git submodule update --init lib/forge-std || echo 'run: git submodule update --init'"
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.39.0",
